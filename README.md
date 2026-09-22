@@ -21,74 +21,86 @@ Execute the C Program for the desired output.
 # PROGRAM:
 
 ## C program that receives a message from message queue and display them
-nano receiver.c
-```
 
- #include <stdio.h>
- #include <sys/ipc.h>
- #include <sys/msg.h>
+```c
+// ipcprog.c - Combined Writer/Reader for System V Message Queue
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
 
-struct message {
-    long type;
-    char text[100];
-};
+struct mesg_buffer {
+    long mesg_type;
+    char mesg_text[100];
+} message;
 
-int main() {
-    key_t key = ftok(".", 'a');
-    int msgid = msgget(key, 0666 | IPC_CREAT);
-    struct message msg;
-    
-    printf("Waiting for message...\n");
-    msgrcv(msgid, &msg, sizeof(msg.text), 1, 0);
-    printf("Received: %s\n", msg.text);
-    
+int main(int argc, char *argv[]) {
+    key_t key;
+    int msgid;
+
+    if (argc != 2) {
+        printf("Usage: %s writer|reader\n", argv[0]);
+        return 1;
+    }
+
+    // Generate key
+    key = ftok("progfile", 65);
+    if (key == -1) {
+        perror("ftok");
+        return 1;
+    }
+
+    // Create message queue and return id
+    msgid = msgget(key, 0666 | IPC_CREAT);
+    if (msgid == -1) {
+        perror("msgget");
+        return 1;
+    }
+
+    // Print msgid for grading script
+    printf("Message Queue ID: %d\n", msgid);
+
+    if (strcmp(argv[1], "writer") == 0) {
+        message.mesg_type = 1;
+        printf("Enter Message: ");
+        fgets(message.mesg_text, sizeof(message.mesg_text), stdin);
+        message.mesg_text[strcspn(message.mesg_text, "\n")] = 0; // remove newline
+
+        if (msgsnd(msgid, &message, sizeof(message), 0) == -1) {
+            perror("msgsnd");
+            return 1;
+        }
+
+        printf("Message sent: %s\n", message.mesg_text);
+    }
+    else if (strcmp(argv[1], "reader") == 0) {
+        if (msgrcv(msgid, &message, sizeof(message), 1, 0) == -1) {
+            perror("msgrcv");
+            return 1;
+        }
+
+        printf("Message received: %s\n", message.mesg_text);
+
+        // Destroy the message queue
+        msgctl(msgid, IPC_RMID, NULL);
+    }
+    else {
+        printf("Invalid argument. Use writer or reader.\n");
+        return 1;
+    }
+
     return 0;
 }
 ```
-```
-nano sender.c
-
- #include <stdio.h>
- #include <sys/ipc.h>
- #include <sys/msg.h>
- #include <string.h>
-
-struct message {
-    long type;
-    char text[100];
-};
-
-int main() {
-    key_t key = ftok(".", 'a');
-    int msgid = msgget(key, 0666 | IPC_CREAT);
-    struct message msg;
-    
-    msg.type = 1;
-    strcpy(msg.text, "Hello Thaarakeshwar");
-    
-    msgsnd(msgid, &msg, sizeof(msg.text), 0);
-    printf("Sent: %s\n", msg.text);
-    
-    return 0;
-}
-```
-gcc receiver.c -o receiver
-
-./receiver
-
-gcc sender.c -o sender
-
-./sender
 
 
 
+## OUTPUT
 
-## OUTPUT 
-<img width="299" height="90" alt="image" src="https://github.com/user-attachments/assets/4ef2376e-050d-4f30-89b3-40fc1f04adab" />
+<img width="472" height="130" alt="image" src="https://github.com/user-attachments/assets/8037ba89-1dbb-43f0-a6bd-d7dc261c1a6a" />
 
-<img width="284" height="101" alt="image" src="https://github.com/user-attachments/assets/9cdf0d2a-6f3a-40d8-b52c-012a0414224a" />
-
-
+<img width="680" height="242" alt="image" src="https://github.com/user-attachments/assets/847a68bc-ea2d-4f60-a517-412892230b57" />
 
 
 # RESULT:
